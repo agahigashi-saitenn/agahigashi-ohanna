@@ -5,33 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>御花記帳 スマホアプリ</title>
   <style>
-    body { font-family: -apple-system, sans-serif; background: #f4f6f8; margin: 0; padding: 10px; }
-    h2 { text-align: center; color: #333; margin-top: 5px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 10px; color: #333; }
+    h2 { text-align: center; color: #1a252f; margin: 10px 0 15px; font-size: 1.3rem; }
     
     /* 班切替タブ */
-    .nav-tabs { display: flex; overflow-x: auto; gap: 5px; margin-bottom: 15px; padding-bottom: 5px; }
-    .nav-tabs button { flex: 0 0 auto; padding: 10px 16px; border: none; background: #e0e0e0; border-radius: 20px; font-weight: bold; }
-    .nav-tabs button.active { background: #007bff; color: white; }
+    .nav-tabs { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 15px; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+    .nav-tabs button { flex: 0 0 auto; padding: 8px 14px; border: none; background: #e0e6ed; color: #475569; border-radius: 20px; font-weight: bold; font-size: 14px; }
+    .nav-tabs button.active { background: #007bff; color: white; box-shadow: 0 2px 4px rgba(0,123,255,0.3); }
     
     /* リストカード */
-    .card { background: white; border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .card.updated { border-left: 5px solid #ffc107; background: #fffdf0; }
-    .card-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
-    .badge-updated { background: #ffc107; color: #000; font-size: 11px; padding: 2px 6px; border-radius: 4px; }
+    .card { background: white; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+    .card.updated { border-left: 5px solid #ffc107; background: #fffdf5; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #edf2f7; padding-bottom: 6px; color: #2d3748; }
+    .badge-updated { background: #ffc107; color: #000; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: bold; }
     
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
-    label { font-size: 12px; color: #666; display: block; }
-    input { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; }
-    input.readonly { background: #f0f0f0; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    label { font-size: 12px; color: #64748b; font-weight: bold; display: block; margin-bottom: 4px; }
+    input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; background: #fff; appearance: none; -webkit-appearance: none; }
+    input:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
+    input.readonly { background: #f1f5f9; color: #64748b; font-weight: bold; }
     
-    .btn-save { width: 100%; background: #28a745; color: white; border: none; padding: 10px; border-radius: 5px; font-size: 15px; font-weight: bold; margin-top: 5px; }
+    .field-group { margin-bottom: 10px; }
+    .btn-save { width: 100%; background: #28a745; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: bold; margin-top: 6px; active: background-color: #218838; }
   </style>
 </head>
 <body>
 
   <h2>御花記帳 (令和8年度)</h2>
 
-  <!-- 1. 班切り替えタブ -->
+  <!-- 班切り替えタブ -->
   <div class="nav-tabs" id="tabs">
     <button onclick="changeGroup('（A班）', this)" class="active">A班</button>
     <button onclick="changeGroup('（B班）', this)">B班</button>
@@ -43,63 +45,91 @@
     <button onclick="changeGroup('（子供会）', this)">子供会</button>
   </div>
 
-  <div id="list">読み込み中...</div>
+  <div id="list">データ読み込み中...</div>
 
   <script>
-    // Step 2で取得したGASのWebアプリURLを入力してください
+    // ご自身のGASデプロイURLを指定してください
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyofUafvgtzV9j-Njj6BamITC6xOLGDrC3P9PTSlNnvdTFySYpvAL1yO0SBHzHwWWD9/exec"; 
     let currentSheet = '（A班）';
 
-    async function loadData() {
-      document.getElementById('list').innerHTML = "データ読み込み中...";
-      const res = await fetch(`${GAS_URL}?sheet=${encodeURIComponent(currentSheet)}`);
-      const data = await res.json();
+    // 日付フォーマット変換 (YYYY-MM-DD -> MM/DD またはそのまま表示用)
+    function formatDateForInput(dateStr) {
+      if (!dateStr) return '';
+      // すでに YYYY-MM-DD 形式ならそのまま返す
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
       
-      let html = '';
-      data.forEach((item) => {
-        html += `
-          <div class="card ${item.isUpdated ? 'updated' : ''}">
-            <div class="card-header">
-              <span>${item.group}</span>
-              ${item.isUpdated ? '<span class="badge-updated">修正・入力あり</span>' : ''}
-            </div>
-            
-            <!-- 4. 御署名の表示・修正 -->
-            <div style="margin-bottom: 8px;">
-              <label>御署名</label>
-              <input type="text" id="name_${item.rowIndex}" value="${item.name}">
-            </div>
-            
-            <div class="grid">
-              <!-- 3. 前年（令和7年）実績 -->
-              <div>
-                <label>R7実績 (前年)</label>
-                <input type="text" class="readonly" value="${item.r7_amount || '-'}" readonly>
+      // Dateオブジェクトに変換を試みる
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      }
+      return '';
+    }
+
+    async function loadData() {
+      document.getElementById('list').innerHTML = '<div style="text-align:center; padding: 20px; color:#666;">データ読み込み中...</div>';
+      try {
+        const res = await fetch(`${GAS_URL}?sheet=${encodeURIComponent(currentSheet)}`);
+        const data = await res.json();
+        
+        if (data.error) {
+          document.getElementById('list').innerHTML = `<div style="color:red; text-align:center;">エラー: ${data.error}</div>`;
+          return;
+        }
+
+        let html = '';
+        data.forEach((item) => {
+          const formattedDate = formatDateForInput(item.r8_date);
+          
+          html += `
+            <div class="card ${item.isUpdated ? 'updated' : ''}">
+              <div class="card-header">
+                <span>${item.group || currentSheet.replace(/[（）]/g, '')}</span>
+                ${item.isUpdated ? '<span class="badge-updated">修正・入力あり</span>' : ''}
               </div>
-              <!-- 2. 令和8年御花 金額 -->
-              <div>
-                <label>R8金額 (円)</label>
-                <input type="number" id="amt_${item.rowIndex}" value="${item.r8_amount}">
+              
+              <!-- 御署名 -->
+              <div class="field-group">
+                <label>御署名</label>
+                <input type="text" id="name_${item.rowIndex}" value="${item.name || ''}">
               </div>
-            </div>
+              
+              <div class="grid">
+                <!-- 前年実績 -->
+                <div>
+                  <label>R7実績 (前年)</label>
+                  <input type="text" class="readonly" value="${item.r7_amount ? item.r7_amount + '円' : '-'}" readonly>
+                </div>
+                <!-- 令和8年 金額 -->
+                <div>
+                  <label>R8金額 (円)</label>
+                  <input type="number" id="amt_${item.rowIndex}" value="${item.r8_amount || ''}" placeholder="例: 3000">
+                </div>
+              </div>
 
-            <!-- 2. 集金日 -->
-            <div style="margin-bottom: 8px;">
-              <label>R8集金日</label>
-              <input type="text" id="date_${item.rowIndex}" value="${item.r8_date}" placeholder="例: 10/14">
-            </div>
+              <!-- 令和8年 集金日 (カレンダー選択方式) -->
+              <div class="field-group">
+                <label>R8集金日 (カレンダーから選択)</label>
+                <input type="date" id="date_${item.rowIndex}" value="${formattedDate}">
+              </div>
 
-            <!-- 4. 備考の表示・修正 -->
-            <div style="margin-bottom: 8px;">
-              <label>備考</label>
-              <input type="text" id="note_${item.rowIndex}" value="${item.note}">
-            </div>
+              <!-- 備考 -->
+              <div class="field-group">
+                <label>備考</label>
+                <input type="text" id="note_${item.rowIndex}" value="${item.note || ''}">
+              </div>
 
-            <button class="btn-save" onclick="saveRow(${item.rowIndex})">保存 / 更新</button>
-          </div>
-        `;
-      });
-      document.getElementById('list').innerHTML = html;
+              <button class="btn-save" onclick="saveRow(${item.rowIndex})">保存 / 更新</button>
+            </div>
+          `;
+        });
+        document.getElementById('list').innerHTML = html || '<div style="text-align:center; padding:20px;">データがありません。</div>';
+      } catch (err) {
+        document.getElementById('list').innerHTML = '<div style="color:red; text-align:center;">データの取得に失敗しました。URLや接続をご確認ください。</div>';
+      }
     }
 
     function changeGroup(sheetName, btn) {
@@ -109,7 +139,7 @@
       loadData();
     }
 
-    // データの更新送信
+    // 保存処理
     async function saveRow(rowIndex) {
       const payload = {
         sheet: currentSheet,
@@ -120,13 +150,23 @@
         note: document.getElementById(`note_${rowIndex}`).value
       };
 
-      alert("保存中...");
-      await fetch(GAS_URL, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
-      alert("保存が完了しました！");
-      loadData(); // 再読み込みして黄色表示を反映
+      const btn = event.target;
+      const originalText = btn.innerText;
+      btn.innerText = "保存中...";
+      btn.disabled = true;
+
+      try {
+        await fetch(GAS_URL, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        alert("更新いたしました！");
+        loadData(); // 再読み込みして更新マークを表示
+      } catch (e) {
+        alert("保存に失敗しました。");
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
     }
 
     // 初期ロード

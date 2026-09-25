@@ -5,14 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>御花記帳 スマホアプリ</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 10px; color: #333; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 10px; color: #333; }
     h2 { text-align: center; color: #1a252f; margin: 10px 0 15px; font-size: 1.3rem; }
     
     /* 班切替タブ */
-    .nav-tabs { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 15px; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+    .nav-tabs { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 12px; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
     .nav-tabs button { flex: 0 0 auto; padding: 8px 14px; border: none; background: #e0e6ed; color: #475569; border-radius: 20px; font-weight: bold; font-size: 14px; }
     .nav-tabs button.active { background: #007bff; color: white; box-shadow: 0 2px 4px rgba(0,123,255,0.3); }
     
+    /* 新規追加エリア */
+    .add-section { margin-bottom: 15px; }
+    .btn-add-toggle { width: 100%; background: #007bff; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,123,255,0.2); }
+    .add-form { display: none; background: #eef6ff; border: 2px solid #007bff; border-radius: 10px; padding: 14px; margin-top: 10px; }
+    .add-form h3 { margin: 0 0 10px 0; font-size: 15px; color: #0056b3; }
+
     /* リストカード */
     .card { background: white; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
     .card.updated { border-left: 5px solid #ffc107; background: #fffdf5; }
@@ -26,7 +32,8 @@
     input.readonly { background: #f1f5f9; color: #64748b; font-weight: bold; }
     
     .field-group { margin-bottom: 10px; }
-    .btn-save { width: 100%; background: #28a745; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: bold; margin-top: 6px; active: background-color: #218838; }
+    .btn-save { width: 100%; background: #28a745; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: bold; margin-top: 6px; }
+    .btn-submit-add { width: 100%; background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: bold; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -45,20 +52,42 @@
     <button onclick="changeGroup('（子供会）', this)">子供会</button>
   </div>
 
+  <!-- 新規追加ボタン ＆ フォーム -->
+  <div class="add-section">
+    <button class="btn-add-toggle" onclick="toggleAddForm()">＋ 新規データを追加する</button>
+    <div class="add-form" id="addForm">
+      <h3 id="addFormTitle">【A班】への新規追加</h3>
+      <div class="field-group">
+        <label>御署名 (お名前・屋号)</label>
+        <input type="text" id="new_name" placeholder="例: 兵庫 太郎">
+      </div>
+      <div class="grid">
+        <div>
+          <label>R8金額 (円)</label>
+          <input type="number" id="new_amount" placeholder="例: 3000">
+        </div>
+        <div>
+          <label>R8集金日</label>
+          <input type="date" id="new_date">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>備考</label>
+        <input type="text" id="new_note" placeholder="例: 新規加入">
+      </div>
+      <button class="btn-submit-add" onclick="submitNewRow()">登録する</button>
+    </div>
+  </div>
+
   <div id="list">データ読み込み中...</div>
 
   <script>
-    // ご自身のGASデプロイURLを指定してください
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyofUafvgtzV9j-Njj6BamITC6xOLGDrC3P9PTSlNnvdTFySYpvAL1yO0SBHzHwWWD9/exec"; 
     let currentSheet = '（A班）';
 
-    // 日付フォーマット変換 (YYYY-MM-DD -> MM/DD またはそのまま表示用)
     function formatDateForInput(dateStr) {
       if (!dateStr) return '';
-      // すでに YYYY-MM-DD 形式ならそのまま返す
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-      
-      // Dateオブジェクトに変換を試みる
       const d = new Date(dateStr);
       if (!isNaN(d.getTime())) {
         const yyyy = d.getFullYear();
@@ -67,6 +96,13 @@
         return `${yyyy}-${mm}-${dd}`;
       }
       return '';
+    }
+
+    function toggleAddForm() {
+      const form = document.getElementById('addForm');
+      const isVisible = form.style.display === 'block';
+      form.style.display = isVisible ? 'none' : 'block';
+      document.getElementById('addFormTitle').innerText = `【${currentSheet.replace(/[（）]/g, '')}】への新規追加`;
     }
 
     async function loadData() {
@@ -91,32 +127,27 @@
                 ${item.isUpdated ? '<span class="badge-updated">修正・入力あり</span>' : ''}
               </div>
               
-              <!-- 御署名 -->
               <div class="field-group">
                 <label>御署名</label>
                 <input type="text" id="name_${item.rowIndex}" value="${item.name || ''}">
               </div>
               
               <div class="grid">
-                <!-- 前年実績 -->
                 <div>
                   <label>R7実績 (前年)</label>
                   <input type="text" class="readonly" value="${item.r7_amount ? item.r7_amount + '円' : '-'}" readonly>
                 </div>
-                <!-- 令和8年 金額 -->
                 <div>
                   <label>R8金額 (円)</label>
                   <input type="number" id="amt_${item.rowIndex}" value="${item.r8_amount || ''}" placeholder="例: 3000">
                 </div>
               </div>
 
-              <!-- 令和8年 集金日 (カレンダー選択方式) -->
               <div class="field-group">
-                <label>R8集金日 (カレンダーから選択)</label>
+                <label>R8集金日</label>
                 <input type="date" id="date_${item.rowIndex}" value="${formattedDate}">
               </div>
 
-              <!-- 備考 -->
               <div class="field-group">
                 <label>備考</label>
                 <input type="text" id="note_${item.rowIndex}" value="${item.note || ''}">
@@ -128,7 +159,7 @@
         });
         document.getElementById('list').innerHTML = html || '<div style="text-align:center; padding:20px;">データがありません。</div>';
       } catch (err) {
-        document.getElementById('list').innerHTML = '<div style="color:red; text-align:center;">データの取得に失敗しました。URLや接続をご確認ください。</div>';
+        document.getElementById('list').innerHTML = '<div style="color:red; text-align:center;">データの取得に失敗しました。</div>';
       }
     }
 
@@ -136,10 +167,47 @@
       document.querySelectorAll('.nav-tabs button').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentSheet = sheetName;
+      document.getElementById('addForm').style.display = 'none';
       loadData();
     }
 
-    // 保存処理
+    // 新規追加処理
+    async function submitNewRow() {
+      const name = document.getElementById('new_name').value;
+      if (!name) {
+        alert("御署名（お名前）を入力してください。");
+        return;
+      }
+
+      const payload = {
+        action: 'add',
+        sheet: currentSheet,
+        name: name,
+        r8_amount: document.getElementById('new_amount').value,
+        r8_date: document.getElementById('new_date').value,
+        note: document.getElementById('new_note').value
+      };
+
+      alert("登録中...");
+      try {
+        await fetch(GAS_URL, {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+        alert("新規追加が完了しました！");
+        // フォームリセット＆非表示
+        document.getElementById('new_name').value = '';
+        document.getElementById('new_amount').value = '';
+        document.getElementById('new_date').value = '';
+        document.getElementById('new_note').value = '';
+        document.getElementById('addForm').style.display = 'none';
+        loadData();
+      } catch (e) {
+        alert("追加に失敗しました。");
+      }
+    }
+
+    // 既存データの更新処理
     async function saveRow(rowIndex) {
       const payload = {
         sheet: currentSheet,
@@ -150,26 +218,19 @@
         note: document.getElementById(`note_${rowIndex}`).value
       };
 
-      const btn = event.target;
-      const originalText = btn.innerText;
-      btn.innerText = "保存中...";
-      btn.disabled = true;
-
+      alert("保存中...");
       try {
         await fetch(GAS_URL, {
           method: "POST",
           body: JSON.stringify(payload)
         });
         alert("更新いたしました！");
-        loadData(); // 再読み込みして更新マークを表示
+        loadData();
       } catch (e) {
         alert("保存に失敗しました。");
-        btn.innerText = originalText;
-        btn.disabled = false;
       }
     }
 
-    // 初期ロード
     loadData();
   </script>
 </body>

@@ -5,35 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>御花記帳 スマホアプリ</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 10px; color: #333; }
-    h2 { text-align: center; color: #1a252f; margin: 10px 0 15px; font-size: 1.3rem; }
+    /* 全体フォントサイズを大きく調整 */
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 12px; color: #222; font-size: 17px; }
+    h2 { text-align: center; color: #1a252f; margin: 10px 0 16px; font-size: 1.6rem; font-weight: bold; }
     
-    /* 班切替タブ */
-    .nav-tabs { display: flex; overflow-x: auto; gap: 6px; margin-bottom: 12px; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
-    .nav-tabs button { flex: 0 0 auto; padding: 8px 14px; border: none; background: #e0e6ed; color: #475569; border-radius: 20px; font-weight: bold; font-size: 14px; }
-    .nav-tabs button.active { background: #007bff; color: white; box-shadow: 0 2px 4px rgba(0,123,255,0.3); }
+    /* 班切替タブ（文字とボタンを大きく） */
+    .nav-tabs { display: flex; overflow-x: auto; gap: 8px; margin-bottom: 16px; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+    .nav-tabs button { flex: 0 0 auto; padding: 10px 18px; border: none; background: #e0e6ed; color: #334155; border-radius: 24px; font-weight: bold; font-size: 16px; }
+    .nav-tabs button.active { background: #007bff; color: white; box-shadow: 0 2px 6px rgba(0,123,255,0.35); }
     
     /* 新規追加エリア */
-    .add-section { margin-bottom: 15px; }
-    .btn-add-toggle { width: 100%; background: #007bff; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,123,255,0.2); }
-    .add-form { display: none; background: #eef6ff; border: 2px solid #007bff; border-radius: 10px; padding: 14px; margin-top: 10px; }
-    .add-form h3 { margin: 0 0 10px 0; font-size: 15px; color: #0056b3; }
+    .add-section { margin-bottom: 18px; }
+    .btn-add-toggle { width: 100%; background: #007bff; color: white; border: none; padding: 14px; border-radius: 10px; font-size: 17px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,123,255,0.25); }
+    .add-form { display: none; background: #eef6ff; border: 2px solid #007bff; border-radius: 12px; padding: 16px; margin-top: 12px; }
+    .add-form h3 { margin: 0 0 12px 0; font-size: 18px; color: #0056b3; }
 
     /* リストカード */
-    .card { background: white; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
-    .card.updated { border-left: 5px solid #ffc107; background: #fffdf5; }
-    .card-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #edf2f7; padding-bottom: 6px; color: #2d3748; }
-    .badge-updated { background: #ffc107; color: #000; font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: bold; }
+    .card { background: white; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 3px 8px rgba(0,0,0,0.08); border: 1px solid #cbd5e1; }
+    .card.updated { border-left: 6px solid #ffc107; background: #fffdf2; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 12px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; color: #1e293b; font-size: 18px; }
+    .badge-updated { background: #ffc107; color: #000; font-size: 13px; padding: 4px 10px; border-radius: 14px; font-weight: bold; }
     
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-    label { font-size: 12px; color: #64748b; font-weight: bold; display: block; margin-bottom: 4px; }
-    input { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; background: #fff; appearance: none; -webkit-appearance: none; }
-    input:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.15); }
-    input.readonly { background: #f1f5f9; color: #64748b; font-weight: bold; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    label { font-size: 15px; color: #475569; font-weight: bold; display: block; margin-bottom: 6px; }
     
-    .field-group { margin-bottom: 10px; }
-    .btn-save { width: 100%; background: #28a745; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: bold; margin-top: 6px; }
-    .btn-submit-add { width: 100%; background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 15px; font-weight: bold; margin-top: 10px; }
+    /* 入力フォームの文字と高さを大きく */
+    input { width: 100%; padding: 12px; box-sizing: border-box; border: 1.5px solid #94a3b8; border-radius: 8px; font-size: 17px; background: #fff; appearance: none; -webkit-appearance: none; }
+    input:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.2); }
+    input.readonly { background: #e2e8f0; color: #334155; font-weight: bold; }
+    
+    .field-group { margin-bottom: 12px; }
+    
+    /* 保存・登録ボタンを大きく見やすく */
+    .btn-save { width: 100%; background: #28a745; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 17px; font-weight: bold; margin-top: 8px; }
+    .btn-submit-add { width: 100%; background: #007bff; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 17px; font-weight: bold; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -82,6 +87,7 @@
   <div id="list">データ読み込み中...</div>
 
   <script>
+    // ご自身のGASデプロイURLを指定してください
     const GAS_URL = "https://script.google.com/macros/s/AKfycbyofUafvgtzV9j-Njj6BamITC6xOLGDrC3P9PTSlNnvdTFySYpvAL1yO0SBHzHwWWD9/exec"; 
     let currentSheet = '（A班）';
 
@@ -106,13 +112,13 @@
     }
 
     async function loadData() {
-      document.getElementById('list').innerHTML = '<div style="text-align:center; padding: 20px; color:#666;">データ読み込み中...</div>';
+      document.getElementById('list').innerHTML = '<div style="text-align:center; padding: 25px; color:#666; font-size:18px;">データ読み込み中...</div>';
       try {
         const res = await fetch(`${GAS_URL}?sheet=${encodeURIComponent(currentSheet)}`);
         const data = await res.json();
         
         if (data.error) {
-          document.getElementById('list').innerHTML = `<div style="color:red; text-align:center;">エラー: ${data.error}</div>`;
+          document.getElementById('list').innerHTML = `<div style="color:red; text-align:center; padding: 20px;">エラー: ${data.error}</div>`;
           return;
         }
 
@@ -157,9 +163,9 @@
             </div>
           `;
         });
-        document.getElementById('list').innerHTML = html || '<div style="text-align:center; padding:20px;">データがありません。</div>';
+        document.getElementById('list').innerHTML = html || '<div style="text-align:center; padding:20px; font-size:18px;">データがありません。</div>';
       } catch (err) {
-        document.getElementById('list').innerHTML = '<div style="color:red; text-align:center;">データの取得に失敗しました。</div>';
+        document.getElementById('list').innerHTML = '<div style="color:red; text-align:center; padding: 20px;">データの取得に失敗しました。</div>';
       }
     }
 
@@ -195,7 +201,6 @@
           body: JSON.stringify(payload)
         });
         alert("新規追加が完了しました！");
-        // フォームリセット＆非表示
         document.getElementById('new_name').value = '';
         document.getElementById('new_amount').value = '';
         document.getElementById('new_date').value = '';

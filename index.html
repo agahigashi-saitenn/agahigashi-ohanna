@@ -5,18 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>御花記帳 スマホアプリ</title>
   <style>
-    /* 全体フォントサイズを大きく調整 */
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 12px; color: #222; font-size: 17px; }
     h2 { text-align: center; color: #1a252f; margin: 10px 0 16px; font-size: 1.6rem; font-weight: bold; }
     
-    /* 班切替タブ（文字とボタンを大きく） */
-    .nav-tabs { display: flex; overflow-x: auto; gap: 8px; margin-bottom: 16px; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+    /* 班切替タブ */
+    .nav-tabs { display: flex; overflow-x: auto; gap: 8px; margin-bottom: 12px; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
     .nav-tabs button { flex: 0 0 auto; padding: 10px 18px; border: none; background: #e0e6ed; color: #334155; border-radius: 24px; font-weight: bold; font-size: 16px; }
     .nav-tabs button.active { background: #007bff; color: white; box-shadow: 0 2px 6px rgba(0,123,255,0.35); }
     
+    /* 検索ボックスエリア */
+    .search-section { margin-bottom: 14px; position: relative; }
+    .search-input { width: 100%; padding: 12px 16px; box-sizing: border-box; border: 2px solid #007bff; border-radius: 25px; font-size: 17px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .search-input:focus { outline: none; background: #f0f7ff; }
+
     /* 新規追加エリア */
     .add-section { margin-bottom: 18px; }
-    .btn-add-toggle { width: 100%; background: #007bff; color: white; border: none; padding: 14px; border-radius: 10px; font-size: 17px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,123,255,0.25); }
+    .btn-add-toggle { width: 100%; background: #28a745; color: white; border: none; padding: 12px; border-radius: 10px; font-size: 17px; font-weight: bold; box-shadow: 0 2px 5px rgba(40,167,69,0.25); }
     .add-form { display: none; background: #eef6ff; border: 2px solid #007bff; border-radius: 12px; padding: 16px; margin-top: 12px; }
     .add-form h3 { margin: 0 0 12px 0; font-size: 18px; color: #0056b3; }
 
@@ -29,16 +33,14 @@
     .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
     label { font-size: 15px; color: #475569; font-weight: bold; display: block; margin-bottom: 6px; }
     
-    /* 入力フォームの文字と高さを大きく */
     input { width: 100%; padding: 12px; box-sizing: border-box; border: 1.5px solid #94a3b8; border-radius: 8px; font-size: 17px; background: #fff; appearance: none; -webkit-appearance: none; }
     input:focus { outline: none; border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.2); }
     input.readonly { background: #e2e8f0; color: #334155; font-weight: bold; }
     
     .field-group { margin-bottom: 12px; }
     
-    /* 保存・登録ボタンを大きく見やすく */
-    .btn-save { width: 100%; background: #28a745; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 17px; font-weight: bold; margin-top: 8px; }
-    .btn-submit-add { width: 100%; background: #007bff; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 17px; font-weight: bold; margin-top: 12px; }
+    .btn-save { width: 100%; background: #007bff; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 17px; font-weight: bold; margin-top: 8px; }
+    .btn-submit-add { width: 100%; background: #28a745; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 17px; font-weight: bold; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -55,6 +57,11 @@
     <button onclick="changeGroup('（E班）', this)">E班</button>
     <button onclick="changeGroup('（F班）', this)">F班</button>
     <button onclick="changeGroup('（子供会）', this)">子供会</button>
+  </div>
+
+  <!-- 御署名 検索ボックス -->
+  <div class="search-section">
+    <input type="text" id="searchInput" class="search-input" placeholder="🔍 御署名（部分一致）で絞り込み..." oninput="filterData()">
   </div>
 
   <!-- 新規追加ボタン ＆ フォーム -->
@@ -87,9 +94,29 @@
   <div id="list">データ読み込み中...</div>
 
   <script>
-    // ご自身のGASデプロイURLを指定してください
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyofUafvgtzV9j-Njj6BamITC6xOLGDrC3P9PTSlNnvdTFySYpvAL1yO0SBHzHwWWD9/exec"; 
+    const GAS_URL = "YOUR_GAS_DEPLOYMENT_URL_HERE"; 
     let currentSheet = '（A班）';
+    let currentData = [];
+
+    // ひらがなをカタカナに変換（あいまい部分一致用）
+    function hiraToKata(str) {
+      return str.replace(/[\u3041-\u3096]/g, function(match) {
+        var chr = match.charCodeAt(0) + 0x60;
+        return String.fromCharCode(chr);
+      });
+    }
+
+    // 文字列の正規化（全化/半角統一、ひらがな/カタカナ統一、英小文字化）
+    function normalizeStr(str) {
+      if (!str) return '';
+      let s = str.toString().toLowerCase();
+      s = hiraToKata(s); // ひらがなをカタカナに統一
+      // 全角英数字/スペースを半角に変換
+      s = s.replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(s) {
+        return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+      }).replace(/ /g, ' ');
+      return s;
+    }
 
     function formatDateForInput(dateStr) {
       if (!dateStr) return '';
@@ -113,60 +140,95 @@
 
     async function loadData() {
       document.getElementById('list').innerHTML = '<div style="text-align:center; padding: 25px; color:#666; font-size:18px;">データ読み込み中...</div>';
+      document.getElementById('searchInput').value = '';
+      
       try {
         const res = await fetch(`${GAS_URL}?sheet=${encodeURIComponent(currentSheet)}`);
-        const data = await res.json();
+        currentData = await res.json();
         
-        if (data.error) {
-          document.getElementById('list').innerHTML = `<div style="color:red; text-align:center; padding: 20px;">エラー: ${data.error}</div>`;
+        if (currentData.error) {
+          document.getElementById('list').innerHTML = `<div style="color:red; text-align:center; padding: 20px;">エラー: ${currentData.error}</div>`;
           return;
         }
 
-        let html = '';
-        data.forEach((item) => {
-          const formattedDate = formatDateForInput(item.r8_date);
-          
-          html += `
-            <div class="card ${item.isUpdated ? 'updated' : ''}">
-              <div class="card-header">
-                <span>${item.group || currentSheet.replace(/[（）]/g, '')}</span>
-                ${item.isUpdated ? '<span class="badge-updated">修正・入力あり</span>' : ''}
-              </div>
-              
-              <div class="field-group">
-                <label>御署名</label>
-                <input type="text" id="name_${item.rowIndex}" value="${item.name || ''}">
-              </div>
-              
-              <div class="grid">
-                <div>
-                  <label>R7実績 (前年)</label>
-                  <input type="text" class="readonly" value="${item.r7_amount ? item.r7_amount + '円' : '-'}" readonly>
-                </div>
-                <div>
-                  <label>R8金額 (円)</label>
-                  <input type="number" id="amt_${item.rowIndex}" value="${item.r8_amount || ''}" placeholder="例: 3000">
-                </div>
-              </div>
-
-              <div class="field-group">
-                <label>R8集金日</label>
-                <input type="date" id="date_${item.rowIndex}" value="${formattedDate}">
-              </div>
-
-              <div class="field-group">
-                <label>備考</label>
-                <input type="text" id="note_${item.rowIndex}" value="${item.note || ''}">
-              </div>
-
-              <button class="btn-save" onclick="saveRow(${item.rowIndex})">保存 / 更新</button>
-            </div>
-          `;
-        });
-        document.getElementById('list').innerHTML = html || '<div style="text-align:center; padding:20px; font-size:18px;">データがありません。</div>';
+        renderList(currentData);
       } catch (err) {
         document.getElementById('list').innerHTML = '<div style="color:red; text-align:center; padding: 20px;">データの取得に失敗しました。</div>';
       }
+    }
+
+    // 高度な部分一致・絞り込み検索処理
+    function filterData() {
+      const inputVal = document.getElementById('searchInput').value.trim();
+      if (!inputVal) {
+        renderList(currentData);
+        return;
+      }
+
+      // スペース区切りで複数キーワード（AND検索）に対応
+      const keywords = normalizeStr(inputVal).split(/\s+/);
+
+      const filtered = currentData.filter(item => {
+        const targetName = normalizeStr(item.name);
+        const targetNote = normalizeStr(item.note);
+        const targetText = targetName + ' ' + targetNote;
+
+        // 全キーワードが対象テキストに含まれているか（AND検索）
+        return keywords.every(kw => targetText.includes(kw));
+      });
+
+      renderList(filtered);
+    }
+
+    // カード一覧の描画
+    function renderList(dataList) {
+      if (!dataList || dataList.length === 0) {
+        document.getElementById('list').innerHTML = '<div style="text-align:center; padding:25px; color:#777; font-size:18px;">該当する候補が見つかりません。</div>';
+        return;
+      }
+
+      let html = '';
+      dataList.forEach((item) => {
+        const formattedDate = formatDateForInput(item.r8_date);
+        
+        html += `
+          <div class="card ${item.isUpdated ? 'updated' : ''}">
+            <div class="card-header">
+              <span>${item.group || currentSheet.replace(/[（）]/g, '')}</span>
+              ${item.isUpdated ? '<span class="badge-updated">修正・入力あり</span>' : ''}
+            </div>
+            
+            <div class="field-group">
+              <label>御署名</label>
+              <input type="text" id="name_${item.rowIndex}" value="${item.name || ''}">
+            </div>
+            
+            <div class="grid">
+              <div>
+                <label>R7実績 (前年)</label>
+                <input type="text" class="readonly" value="${item.r7_amount ? item.r7_amount + '円' : '-'}" readonly>
+              </div>
+              <div>
+                <label>R8金額 (円)</label>
+                <input type="number" id="amt_${item.rowIndex}" value="${item.r8_amount || ''}" placeholder="例: 3000">
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label>R8集金日</label>
+              <input type="date" id="date_${item.rowIndex}" value="${formattedDate}">
+            </div>
+
+            <div class="field-group">
+              <label>備考</label>
+              <input type="text" id="note_${item.rowIndex}" value="${item.note || ''}">
+            </div>
+
+            <button class="btn-save" onclick="saveRow(${item.rowIndex})">保存 / 更新</button>
+          </div>
+        `;
+      });
+      document.getElementById('list').innerHTML = html;
     }
 
     function changeGroup(sheetName, btn) {

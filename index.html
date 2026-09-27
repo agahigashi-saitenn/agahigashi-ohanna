@@ -6,15 +6,24 @@
   <title>御花記帳 スマホアプリ</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f8; margin: 0; padding: 12px; color: #222; font-size: 17px; }
-    h2 { text-align: center; color: #1a252f; margin: 10px 0 16px; font-size: 1.6rem; font-weight: bold; }
+    h2 { text-align: center; color: #1a252f; margin: 5px 0 12px; font-size: 1.5rem; font-weight: bold; }
     
+    /* 画面上部固定：合計金額＆担当者バー */
+    .sticky-header { position: sticky; top: 0; z-index: 100; background: #1e293b; color: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+    .header-top { display: flex; justify-content: space-between; align-items: center; }
+    .header-top .title { font-size: 15px; font-weight: bold; color: #94a3b8; }
+    .header-top .total-amount { font-size: 22px; font-weight: bold; color: #4ade80; }
+    
+    .operator-bar { margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #cbd5e1; }
+    .btn-change-operator { background: #475569; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 12px; }
+
     /* 班切替タブ */
     .nav-tabs { display: flex; overflow-x: auto; gap: 8px; margin-bottom: 12px; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
     .nav-tabs button { flex: 0 0 auto; padding: 10px 18px; border: none; background: #e0e6ed; color: #334155; border-radius: 24px; font-weight: bold; font-size: 16px; }
     .nav-tabs button.active { background: #007bff; color: white; box-shadow: 0 2px 6px rgba(0,123,255,0.35); }
     
     /* 検索ボックスエリア */
-    .search-section { margin-bottom: 14px; position: relative; }
+    .search-section { margin-bottom: 14px; }
     .search-input { width: 100%; padding: 12px 16px; box-sizing: border-box; border: 2px solid #007bff; border-radius: 25px; font-size: 17px; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     .search-input:focus { outline: none; background: #f0f7ff; }
 
@@ -44,6 +53,18 @@
   </style>
 </head>
 <body>
+
+  <!-- 上部固定：合計金額 ＆ 担当者表示エリア -->
+  <div class="sticky-header">
+    <div class="header-top">
+      <div class="title" id="groupTitle">【A班】令和8年 合計</div>
+      <div class="total-amount" id="totalAmount">0 円</div>
+    </div>
+    <div class="operator-bar">
+      <span>👤 担当者: <strong id="operatorDisplay">未設定</strong></span>
+      <button class="btn-change-operator" onclick="promptOperatorName()">変更</button>
+    </div>
+  </div>
 
   <h2>御花記帳 (令和8年度)</h2>
 
@@ -94,24 +115,54 @@
   <div id="list">データ読み込み中...</div>
 
   <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbyofUafvgtzV9j-Njj6BamITC6xOLGDrC3P9PTSlNnvdTFySYpvAL1yO0SBHzHwWWD9/exec"; 
+    const GAS_URL = "YOUR_GAS_DEPLOYMENT_URL_HERE"; 
     let currentSheet = '（A班）';
     let currentData = [];
+    let currentOperator = '';
 
-    // ひらがなをカタカナに変換（あいまい部分一致用）
+    // 簡易端末情報の取得関数
+    function getDeviceInfo() {
+      const ua = navigator.userAgent;
+      if (/iPhone/i.test(ua)) return 'iPhone (' + (ua.match(/OS (\d+_\d+)/) ? ua.match(/OS (\d+_\d+)/)[1].replace('_', '.') : 'iOS') + ')';
+      if (/iPad/i.test(ua)) return 'iPad';
+      if (/Android/i.test(ua)) return 'Android';
+      if (/Macintosh/i.test(ua)) return 'Mac';
+      if (/Windows/i.test(ua)) return 'Windows PC';
+      return 'その他端末';
+    }
+
+    // 担当者名の設定・取得
+    function initOperator() {
+      currentOperator = localStorage.getItem('ohana_operator_name');
+      if (!currentOperator) {
+        promptOperatorName();
+      } else {
+        document.getElementById('operatorDisplay').innerText = currentOperator;
+      }
+    }
+
+    function promptOperatorName() {
+      const name = prompt("担当者のお名前を入力してください:", currentOperator || "");
+      if (name && name.trim() !== "") {
+        currentOperator = name.trim();
+        localStorage.setItem('ohana_operator_name', currentOperator);
+        document.getElementById('operatorDisplay').innerText = currentOperator;
+      } else if (!currentOperator) {
+        currentOperator = '未設定';
+        document.getElementById('operatorDisplay').innerText = currentOperator;
+      }
+    }
+
     function hiraToKata(str) {
       return str.replace(/[\u3041-\u3096]/g, function(match) {
-        var chr = match.charCodeAt(0) + 0x60;
-        return String.fromCharCode(chr);
+        return String.fromCharCode(match.charCodeAt(0) + 0x60);
       });
     }
 
-    // 文字列の正規化（全化/半角統一、ひらがな/カタカナ統一、英小文字化）
     function normalizeStr(str) {
       if (!str) return '';
       let s = str.toString().toLowerCase();
-      s = hiraToKata(s); // ひらがなをカタカナに統一
-      // 全角英数字/スペースを半角に変換
+      s = hiraToKata(s);
       s = s.replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(s) {
         return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
       }).replace(/ /g, ' ');
@@ -141,15 +192,20 @@
     async function loadData() {
       document.getElementById('list').innerHTML = '<div style="text-align:center; padding: 25px; color:#666; font-size:18px;">データ読み込み中...</div>';
       document.getElementById('searchInput').value = '';
+      const groupName = currentSheet.replace(/[（）]/g, '');
+      document.getElementById('groupTitle').innerText = `【${groupName}】令和8年 合計`;
       
       try {
         const res = await fetch(`${GAS_URL}?sheet=${encodeURIComponent(currentSheet)}`);
-        currentData = await res.json();
+        const responseData = await res.json();
         
-        if (currentData.error) {
-          document.getElementById('list').innerHTML = `<div style="color:red; text-align:center; padding: 20px;">エラー: ${currentData.error}</div>`;
+        if (responseData.error) {
+          document.getElementById('list').innerHTML = `<div style="color:red; text-align:center; padding: 20px;">エラー: ${responseData.error}</div>`;
           return;
         }
+
+        currentData = responseData.data;
+        document.getElementById('totalAmount').innerText = (responseData.totalR8 || 0).toLocaleString() + ' 円';
 
         renderList(currentData);
       } catch (err) {
@@ -157,7 +213,6 @@
       }
     }
 
-    // 高度な部分一致・絞り込み検索処理
     function filterData() {
       const inputVal = document.getElementById('searchInput').value.trim();
       if (!inputVal) {
@@ -165,22 +220,17 @@
         return;
       }
 
-      // スペース区切りで複数キーワード（AND検索）に対応
       const keywords = normalizeStr(inputVal).split(/\s+/);
-
       const filtered = currentData.filter(item => {
         const targetName = normalizeStr(item.name);
         const targetNote = normalizeStr(item.note);
         const targetText = targetName + ' ' + targetNote;
-
-        // 全キーワードが対象テキストに含まれているか（AND検索）
         return keywords.every(kw => targetText.includes(kw));
       });
 
       renderList(filtered);
     }
 
-    // カード一覧の描画
     function renderList(dataList) {
       if (!dataList || dataList.length === 0) {
         document.getElementById('list').innerHTML = '<div style="text-align:center; padding:25px; color:#777; font-size:18px;">該当する候補が見つかりません。</div>';
@@ -239,7 +289,6 @@
       loadData();
     }
 
-    // 新規追加処理
     async function submitNewRow() {
       const name = document.getElementById('new_name').value;
       if (!name) {
@@ -253,7 +302,9 @@
         name: name,
         r8_amount: document.getElementById('new_amount').value,
         r8_date: document.getElementById('new_date').value,
-        note: document.getElementById('new_note').value
+        note: document.getElementById('new_note').value,
+        operator: currentOperator,
+        userAgent: getDeviceInfo()
       };
 
       alert("登録中...");
@@ -274,7 +325,6 @@
       }
     }
 
-    // 既存データの更新処理
     async function saveRow(rowIndex) {
       const payload = {
         sheet: currentSheet,
@@ -282,7 +332,9 @@
         name: document.getElementById(`name_${rowIndex}`).value,
         r8_amount: document.getElementById(`amt_${rowIndex}`).value,
         r8_date: document.getElementById(`date_${rowIndex}`).value,
-        note: document.getElementById(`note_${rowIndex}`).value
+        note: document.getElementById(`note_${rowIndex}`).value,
+        operator: currentOperator,
+        userAgent: getDeviceInfo()
       };
 
       alert("保存中...");
@@ -298,6 +350,7 @@
       }
     }
 
+    initOperator();
     loadData();
   </script>
 </body>
